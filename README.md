@@ -2,6 +2,9 @@
 
 This is the final project for the course "Communication Networks."
 
+The project instructions can be found [here](./final_project.pdf).
+
+
 ### Requirements
 - Python 3.12
 
