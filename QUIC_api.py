@@ -23,6 +23,7 @@ class QUIC:
         self.port = None
 
         self.stream_id_generator = 0
+        self.streams: Dict[int, bytes] = {}
 
     def listen(self, host: str, port: int):
         """
@@ -54,17 +55,17 @@ class QUIC:
         self.host = host
         self.port = port
 
-        # Send a SYN packet to the server so start the connection
+        # Send a SYN packet to the receiver so start the connection
         packet = QUICPacket(PacketType.SYN)
         self.socket.sendto(pickle.dumps(packet), (self.host, self.port))
 
-        # Wait for the server to accept the connection
+        # Wait for the receiver to accept the connection
         data, addr = self.socket.recvfrom(self.max_packet_size)
         packet = pickle.loads(data)
         if packet.header.flags.syn and packet.header.flags.ack:
             print(f"Connection established with {addr} {packet.header.connection_id}")
         else:
-            raise ConnectionError("The server did not accept the connection")
+            raise ConnectionError("The receiver did not accept the connection")
 
         # raise NotImplementedError()
 
@@ -81,7 +82,7 @@ class QUIC:
             data_to_send = data[offset: (i + 1) * self.max_packet_size]
             packet.add_frame(QUICPacket.Frame(stream_id, offset, self.max_packet_size, data_to_send))
             self.socket.sendto(pickle.dumps(packet), (self.host, self.port))
-            # TODO: wait for the server to acknowledge the packet
+            # TODO: wait for the receiver to acknowledge the packet
 
         # send the last packet
         packet = QUICPacket(PacketType.DATA)
@@ -89,15 +90,50 @@ class QUIC:
         data_to_send = data[offset: offset + last_packet_size]
         packet.add_frame(QUICPacket.Frame(stream_id, offset, last_packet_size, data_to_send))
         self.socket.sendto(pickle.dumps(packet), (self.host, self.port))
-        # TODO: wait for the server to acknowledge the packet
+        # TODO: wait for the receiver to acknowledge the packet
 
         raise NotImplementedError()
 
-    def receive(self):
-        raise NotImplementedError()
+    async def receive(self):
+        """
+        This function will receive a message from the socket.
+        it sends an ACK packet to the sender.
+
+        :return:
+        """
+        # Wait for the sender to send a packet
+        data, addr = self.socket.recvfrom(self.max_packet_size)
+        packet = pickle.loads(data)
+
+        if packet.header.flags.data:
+            for frame in packet.payload.frame_lst:
+                if frame.stream_id in self.streams:
+                    self.streams[frame.stream_id] += frame.data
+                else:
+                    self.streams[frame.stream_id] = frame.data
+
+            # send an ACK packet to the sender
+            packet.header.flags = PacketType.ACK_DATA.value
+            packet.payload.frame_lst = []
+            self.socket.sendto(pickle.dumps(packet), addr)
+
+        if packet.header.flags.fin:
+            self.close()  # TODO
 
     def close(self):
 
+        # send a FIN packet to the peer
+        packet = QUICPacket(PacketType.FIN)
+        self.socket.sendto(pickle.dumps(packet), (self.host, self.port))
+
+        # wait for the peer to send a FIN packet
+        data, addr = self.socket.recvfrom(self.max_packet_size)
+        packet = pickle.loads(data)
+
+        if packet.header.flags.ACK:
+            print("Connection closed successfully")
+
+        # TODO: check what to do if the peer did not send an ACK packet
         raise NotImplementedError()
 
 
@@ -168,6 +204,7 @@ class PacketType(Enum):
     ACCEPT_CONNECTION = QUICPacket.QUIQFlags(syn=True, ack=True, data=False, fin=False)
     ACK_DATA = QUICPacket.QUIQFlags(syn=False, ack=True, data=False, fin=False)
     DATA = QUICPacket.QUIQFlags(syn=False, ack=False, data=True, fin=False)
+    FIN = QUICPacket.QUIQFlags(syn=False, ack=False, data=False, fin=True)
 
 
 if __name__ == "__main__":
