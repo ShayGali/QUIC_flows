@@ -67,7 +67,6 @@ class QUIC:
         else:
             raise ConnectionError("The receiver did not accept the connection")
 
-        # raise NotImplementedError()
 
     async def send(self, data: bytes):
         stream_id = self.stream_id_generator
