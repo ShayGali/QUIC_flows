@@ -5,6 +5,7 @@ from enum import IntEnum
 import socket
 import random
 import struct
+import time
 from typing import Dict, List, Tuple
 
 
@@ -22,6 +23,8 @@ class QUIC:
         self._stream_id_generator = 0
         self._input_streams: Dict[int, bytes] = {}  # a buffer to store the received data
         self._output_streams: Dict[int, bytes] = {}
+        self._input_stream_performence: Dict[int, time] = {}  # the sending time of each stream
+        self.frame_stream_counter: Dict[int, int] = {}  # the number of frames in each stream
 
     def listen(self, host: str, port: int):
         """
@@ -184,11 +187,26 @@ class QUIC:
             # print(f"Received packet : packet number: {packet.header.packet_number}, on stream: {packet.payload.frame_lst[0].stream_id}, flags: {packet.header.flags}, number of frames: {len(packet.payload.frame_lst)}")
 
             # if the packet is a data packet
-            if packet.header.flags.data:
-                if packet.header.flags.fin:
+            if packet.flags in range(QUIQ_Flags.DATA, QUIQ_Flags.DATA_FIN + 1):
+
+                if packet.flags == QUIQ_Flags.STREAM_FIRST:
+                    start_time = time.time()
+                    self._input_stream_performence[frames[0][0]] = start_time
+                    if 0 not in self._input_stream_performence:
+                        self._input_stream_performence[0] = start_time
+
+                if packet.flags == QUIQ_Flags.STREAM_LAST:
+                    end_time = time.time()
+                    self._input_stream_performence[frames[0][0]] = end_time - self._input_stream_performence[frames[0][0]]
+
+                if packet.flags == QUIQ_Flags.DATA_FIN:
+                    end_time = time.time()
+                    self._input_stream_performence[0] = end_time - self._input_stream_performence[0]
                     print("Received all the data")
                     break
-                for frame in packet.payload.frame_lst:
+
+                # TODO: add frame counter per stream_id
+                for frame in frames:
                     # IMPORTANT!
                     # we assume that the frames are in order, and all the frames are received
                     # if data loss was an option, each frame offset would be considered.
