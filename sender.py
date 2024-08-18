@@ -20,7 +20,7 @@ async def sender():
         conn = QUIC()
 
         conn.connect_to(HOST, PORT)
-        await conn.send_files([file_data.encode()] * 3)
+        await conn.send_files([file_data.encode()]*3)
         # sleep for two seconds
         await asyncio.sleep(0.01)
         conn.close()
