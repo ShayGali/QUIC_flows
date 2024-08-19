@@ -1,7 +1,3 @@
 this is a small file
-this is a small file
-this is a small file
-this is a small file
-this is a small file
-this is a small file
-this is a small file
+we use this file to test the program
+how the file transfer is working

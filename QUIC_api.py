@@ -268,7 +268,7 @@ class QUIC:
 
 
 class _QUICPacket:
-    MAX_PACKET_SIZE = 15000  # Assuming a typical MTU of 1500 bytes
+    MAX_PACKET_SIZE = 15000
 
     HEADER_FORMAT = '!BIQ'  # 1 byte for flags, 4 bytes for packet number, 8 bytes for payload length
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)

@@ -11,8 +11,10 @@ async def receiver() -> None:
     # Keep receiving file data until the connection is closed
     while (file_data := await conn.receive()) is not None:
         print("Received file data:")
-        # print(file_data)
         # save the file data to a file
+        for i, file in enumerate(file_data):
+            with open(f"file_{i}.txt", "wb") as f:
+                f.write(file)
 
     conn.close()
 
