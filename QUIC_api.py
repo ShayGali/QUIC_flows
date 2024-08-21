@@ -21,10 +21,15 @@ class QUIC:
         self._port = None
 
         self._stream_id_generator = 0
-        self._input_streams: Dict[int, bytes] = {}  # a buffer to store the received data
+        # a buffer to store the received data
+        self._input_streams: Dict[int, bytes] = {}
+        # a buffer to store the data that needs to be sent
         self._output_streams: Dict[int, bytes] = {}
+        # the sending time of each stream. in key 0, we will store the time it took to send all the data
         self._input_stream_performence: Dict[int, time] = {}  # the sending time of each stream
-        self.frame_stream_counter: Dict[int, int] = {}  # the number of frames in each stream
+
+        # number of frames in each stream
+        self.frame_stream_counter: Dict[int, int] = {}
 
     def listen(self, host: str, port: int):
         """
@@ -93,6 +98,7 @@ class QUIC:
         for i, f in enumerate(data):
             self._output_streams[i + 1] = f
 
+        # send the data on the streams
         await self._streams_send()
         self._output_streams.clear()  # clear the output_streams dictionary
 
@@ -119,14 +125,11 @@ class QUIC:
         :return:
         """
 
-        print(f"send on {stream_id}")
-
         # get the data from the output_streams dictionary
         data = self._output_streams[stream_id]
         # print(f"Sending data: {data}")
         # get a random frame size between 1000 and 2000 (excluding the frame header size)
         frame_size = int(random.uniform(1000, 2000))
-        print(f"{stream_id=}, {frame_size=}")
         frame_data_length = frame_size - _QUICPacket.FRAME_HEADER_SIZE  # calculate the frame data length
         number_of_frames = len(data) // frame_data_length  # calculate the number of frames
 
@@ -142,6 +145,8 @@ class QUIC:
         number_of_packets = number_of_frames // frame_per_packet
         if number_of_frames % frame_per_packet != 0:
             number_of_packets += 1
+
+        print(f"{stream_id=}, {number_of_packets=}, {frame_per_packet=}, {number_of_frames=}, {frame_size=}")
 
         # create the packets and send
         for i in range(number_of_packets):
@@ -161,8 +166,6 @@ class QUIC:
                 packet.add_frame(stream_id, offset, data_to_send)
                 offset += 1
 
-            # send the packet
-            print(f"Sending packet on stream {stream_id}, number of packet: {packet.packet_number}")
             self._socket.sendto(packet.serialize(), (self._host, self._port))
 
             # wait 0.001 seconds to simulate the network delay and accept the ACK packet
@@ -180,41 +183,47 @@ class QUIC:
             # Wait for the sender to send a packet
             data, addr = self._socket.recvfrom(_QUICPacket.MAX_PACKET_SIZE)
             packet, frames = _QUICPacket.deserialize(data)
+
+            # add statistics
+            if len(frames) != 0:
+                if frames[0].stream_id not in self.frame_stream_counter:
+                    self.frame_stream_counter[frames[0].stream_id] = 0
+                self.frame_stream_counter[frames[0].stream_id] += len(frames)
+
             num_of_packets += 1
-            # if len(packet.payload.frame_lst) == 0:
-            # print(f"Received packet : packet number: {packet.header.packet_number}, flags: {packet.header.flags} (got no frames)")
-            # else:
-            # print(f"Received packet : packet number: {packet.header.packet_number}, on stream: {packet.payload.frame_lst[0].stream_id}, flags: {packet.header.flags}, number of frames: {len(packet.payload.frame_lst)}")
 
             # if the packet is a data packet
             if packet.flags in range(QUIQ_Flags.DATA, QUIQ_Flags.DATA_FIN + 1):
 
+                # we start measuring the time of the first frame of each stream
                 if packet.flags == QUIQ_Flags.STREAM_FIRST:
                     start_time = time.time()
-                    self._input_stream_performence[frames[0][0]] = start_time
-                    if 0 not in self._input_stream_performence:
+                    self._input_stream_performence[frames[0].stream_id] = start_time
+                    if 0 not in self._input_stream_performence:  # if it is the first frame of the first stream
                         self._input_stream_performence[0] = start_time
 
+                # if the packet is the last frame of the stream
                 if packet.flags == QUIQ_Flags.STREAM_LAST:
                     end_time = time.time()
-                    self._input_stream_performence[frames[0][0]] = end_time - self._input_stream_performence[frames[0][0]]
+                    self._input_stream_performence[frames[0].stream_id] = \
+                        end_time - self._input_stream_performence[frames[0].stream_id]
 
                 if packet.flags == QUIQ_Flags.DATA_FIN:
+                    # calculate the time it took to send all the data on all the streams
                     end_time = time.time()
                     self._input_stream_performence[0] = end_time - self._input_stream_performence[0]
                     print("Received all the data")
+                    self.display_statistics()
                     break
 
-                # TODO: add frame counter per stream_id
                 for frame in frames:
                     # IMPORTANT!
                     # we assume that the frames are in order, and all the frames are received
                     # if data loss was an option, each frame offset would be considered.
-                    frame_stream_id, frame_offset, frame_data = frame
-                    if frame_stream_id in self._input_streams:
-                        self._input_streams[frame_stream_id] += frame_data
+                    if frame.stream_id in self._input_streams:
+                        self._input_streams[frame.stream_id] += frame.data
                     else:
-                        self._input_streams[frame_stream_id] = frame_data
+                        self._input_streams[frame.stream_id] = frame.data
 
                 # send an ACK packet to the sender
                 packet.flags = QUIQ_Flags.ACK_DATA
@@ -231,7 +240,6 @@ class QUIC:
                 return None
 
         print(f"Number of packets: {num_of_packets}")
-        # TODO: statistics
         return self._build_files()
 
     def _build_files(self) -> List[bytes]:
@@ -265,6 +273,15 @@ class QUIC:
         self._socket.close()
         self._is_closed = True
         print("Connection closed")
+
+    def display_statistics(self):
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Displaying statistics~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        print(f"Total time: {self._input_stream_performence[0]}")
+        for i in range(len(self.frame_stream_counter)):
+            print(
+                f"Stream {i + 1}: {self.frame_stream_counter[i + 1]} frames, time: {self._input_stream_performence[i + 1]}")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~End of statistics~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        # TODO: implement this function
 
 
 class _QUICPacket:
@@ -312,11 +329,11 @@ class _QUICPacket:
         return header + self.payload
 
     @classmethod
-    def deserialize(cls, data: bytes) -> Tuple['_QUICPacket', List[Tuple[int, int, bytes]]]:
+    def deserialize(cls, data: bytes) -> Tuple['_QUICPacket', List['_QUICFrame']]:
         """
         Deserialize the bytes to a packet and frames.
         :param data: The bytes to deserialize.
-        :return: A tuple of the packet and a list of frames (each frame is a tuple of stream_id, offset, data)
+        :return: A tuple of the packet and a list of frames.
         """
         header = struct.unpack(cls.HEADER_FORMAT, data[:cls.HEADER_SIZE])
         flags, packet_number, payload_length = header
@@ -332,13 +349,33 @@ class _QUICPacket:
             stream_id, frame_offset, data_length = struct.unpack_from('!IIQ', packet.payload, offset)
             offset += 16  # the header size
             frame_data = packet.payload[offset:offset + data_length]
-            frames.append((stream_id, frame_offset, frame_data))
+            frame = _QUICFrame(stream_id, frame_offset, frame_data)
+            frames.append(frame)
             offset += data_length
 
         return packet, frames
 
     def __str__(self):
         return f"SerializableQUICPacket(flags={self.flags}, number={self.packet_number}, payload_size={len(self.payload)})"
+
+
+@dataclass
+class _QUICFrame:
+    stream_id: int
+    offset: int
+    data: bytes
+
+    def __len__(self):
+        return len(self.data)
+
+
+@dataclass
+class Stream_Statistics:
+    stream_id: int
+    number_of_packets: int
+    number_of_frames: int
+    total_bytes: int
+    time: float
 
 
 class QUIQ_Flags(IntEnum):

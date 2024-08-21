@@ -15,7 +15,6 @@ async def receiver() -> None:
         for i, file in enumerate(file_data):
             with open(f"file_{i}.txt", "wb") as f:
                 f.write(file)
-
     conn.close()
 
 
