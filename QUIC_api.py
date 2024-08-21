@@ -8,6 +8,7 @@ import time
 from typing import Dict, List, Tuple
 
 
+
 class QUIC:
     """
     This class represents a QUIC connection.
@@ -29,6 +30,10 @@ class QUIC:
         self._input_streams: Dict[int, bytes] = {}
         # a buffer to store the data that needs to be sent
         self._output_streams: Dict[int, bytes] = {}
+
+        # the statistics of the connection
+        self.total_connection_statistics: Stream_Statistics = Stream_Statistics(0, 0, 0, 0, 0)
+        # a dictionary to store the statistics of each stream
         self.stream_statistics: Dict[int, Stream_Statistics] = {}
 
     def listen(self, host: str, port: int):
@@ -193,17 +198,15 @@ class QUIC:
                 # we start measuring the time of the first frame of each stream
                 if packet.flags == QUIQ_Flags.STREAM_FIRST:
                     start_time = time.time()
-                    if frames[0].stream_id not in self.stream_statistics:
+                    if frames[0].stream_id not in self.stream_statistics:  # need for continuous streams
                         self.stream_statistics[frames[0].stream_id] = Stream_Statistics(frames[0].stream_id, 0, 0, 0, 0)
                     self.stream_statistics[frames[0].stream_id].time = start_time
-                    if 0 not in self.stream_statistics:  # if it is the first frame of the first stream
-                        self.stream_statistics[0] = Stream_Statistics(0, 0, 0, 0, 0)
-                        self.stream_statistics[0].time = start_time
+                    self.total_connection_statistics.time = start_time
 
                 # count the number of frames in each stream
                 if len(frames) != 0:
                     self.stream_statistics[frames[0].stream_id].number_of_frames += len(frames)
-                    self.stream_statistics[0].number_of_frames += len(frames)
+                    self.total_connection_statistics.number_of_frames += len(frames)
 
                 # if the packet is the last frame of the stream
                 if packet.flags == QUIQ_Flags.STREAM_LAST:
@@ -215,15 +218,18 @@ class QUIC:
                 if packet.flags == QUIQ_Flags.DATA_FIN:
                     # calculate the time it took to send all the data on all the streams
                     end_time = time.time()
-                    self.stream_statistics[0].time = end_time - self.stream_statistics[0].time
+                    self.total_connection_statistics.time = end_time - self.total_connection_statistics.time
                     print("Received all the data")
                     self.display_statistics()
                     break
 
-                self.stream_statistics[0].number_of_packets += 1
+                # update the statistics
+                # of the current stream
                 self.stream_statistics[frames[0].stream_id].number_of_packets += 1
-                self.stream_statistics[0].total_bytes += len(data)
                 self.stream_statistics[frames[0].stream_id].total_bytes += len(data)
+                # of the total connection
+                self.total_connection_statistics.number_of_packets += 1
+                self.total_connection_statistics.total_bytes += len(data)
 
                 for frame in frames:
                     # IMPORTANT!
@@ -288,31 +294,32 @@ class QUIC:
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Statistics~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
         print("All data statistics:")
-        print(f"\t{'Number of streams':<25}: {len(self.stream_statistics) - 1:,}")  # -1 for the stream 0
-        print(f"\t{'Total Number of packets':<25}: {self.stream_statistics[0].number_of_packets:,}")
-        print(f"\t{'Total Number of frames':<25}: {self.stream_statistics[0].number_of_frames:,}")
-        print(f"\t{'Total Number of bytes':<25}: {self.stream_statistics[0].total_bytes:,}")
-        print(f"\t{'Total time':<25}: {self.stream_statistics[0].time:,} seconds")
+        print(f"\t{'Number of streams':<25}: {len(self.stream_statistics):,}")  # -1 for the stream 0
+        print(f"\t{'Total Number of packets':<25}: {self.total_connection_statistics.number_of_packets:,}")
+        print(f"\t{'Total Number of frames':<25}: {self.total_connection_statistics.number_of_frames:,}")
+        print(f"\t{'Total Number of bytes':<25}: {self.total_connection_statistics.total_bytes:,}")
+        print(f"\t{'Total time':<25}: {self.total_connection_statistics.time:,} seconds")
 
         # d part
-        avg_data_rate = self.stream_statistics[0].total_bytes / self.stream_statistics[0].time
+        avg_data_rate = self.total_connection_statistics.total_bytes / self.total_connection_statistics.time
         print(f"\t{'Average data rate':<25}: {avg_data_rate:,} bytes per second")
 
         # e part
-        avg_packet_rate = self.stream_statistics[0].number_of_packets / self.stream_statistics[0].time
+        avg_packet_rate = self.total_connection_statistics.number_of_packets / self.total_connection_statistics.time
         print(f"\t{'Average packet rate':<25}: {avg_packet_rate:,} packets per second")
 
         print("\nEach stream statistics:")
-        for i in range(len(self.stream_statistics) - 1):
-            print(f"\tStream {self.stream_statistics[i + 1].stream_id:,} statistics:")
-            print(f"\t\t{'Number of packets':<20}: {self.stream_statistics[i + 1].number_of_packets:,}")
-            print(f"\t\t{'Number of frames':<20}: {self.stream_statistics[i + 1].number_of_frames:,}")
-            print(f"\t\t{'Number of bytes':<20}: {self.stream_statistics[i + 1].total_bytes:,}")
-            print(f"\t\t{'Time':<20}: {self.stream_statistics[i + 1].time:,} seconds")
+        for stream_stat in self.stream_statistics.values():
+            print(f"\tStream {stream_stat.stream_id:,} statistics:")
+            print(f"\t\t{'Number of packets':<20}: {stream_stat.number_of_packets:,}")
+            print(f"\t\t{'Number of frames':<20}: {stream_stat.number_of_frames:,}")
+            print(f"\t\t{'Number of bytes':<20}: {stream_stat.total_bytes:,}")
+            print(f"\t\t{'Time':<20}: {stream_stat.time:,} seconds")
 
             # c part
-            avg_data_rate = self.stream_statistics[i + 1].total_bytes / self.stream_statistics[i + 1].time
+            avg_data_rate = stream_stat.total_bytes / stream_stat.time
             print(f"\t\t{'Average data rate':<20}: {avg_data_rate:,} bytes per second")
+
         print("\n~~~~~~~~~~~~~~~~~~~~~~~~~End of statistics~~~~~~~~~~~~~~~~~~~~~~~~~~")
         # TODO: show graphs of d and e on different number of streams
 
@@ -389,7 +396,7 @@ class _QUICPacket:
         offset = 0  # offset in the payload (not of the frame)
         while offset < len(packet.payload):
             stream_id, frame_offset, data_length = struct.unpack_from('!IIQ', packet.payload, offset)
-            offset += 16  # the header size
+            offset += cls.FRAME_HEADER_SIZE  # the header size
             frame_data = packet.payload[offset:offset + data_length]
             frame = _QUICFrame(stream_id, frame_offset, frame_data)
             frames.append(frame)
