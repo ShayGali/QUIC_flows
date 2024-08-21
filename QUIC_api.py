@@ -1,6 +1,5 @@
-import sys
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum
 import socket
 import random
@@ -25,11 +24,7 @@ class QUIC:
         self._input_streams: Dict[int, bytes] = {}
         # a buffer to store the data that needs to be sent
         self._output_streams: Dict[int, bytes] = {}
-        # the sending time of each stream. in key 0, we will store the time it took to send all the data
-        self._input_stream_performence: Dict[int, time] = {}  # the sending time of each stream
-
-        # number of frames in each stream
-        self.frame_stream_counter: Dict[int, int] = {}
+        self.stream_statistics: Dict[int, Stream_Statistics] = {}
 
     def listen(self, host: str, port: int):
         """
@@ -178,19 +173,10 @@ class QUIC:
         The data will be stored in the input_streams dictionary.
         :return: List of bytes objects, or None if the connection is closed.
         """
-        num_of_packets = 0
         while True:
             # Wait for the sender to send a packet
             data, addr = self._socket.recvfrom(_QUICPacket.MAX_PACKET_SIZE)
             packet, frames = _QUICPacket.deserialize(data)
-
-            # add statistics
-            if len(frames) != 0:
-                if frames[0].stream_id not in self.frame_stream_counter:
-                    self.frame_stream_counter[frames[0].stream_id] = 0
-                self.frame_stream_counter[frames[0].stream_id] += len(frames)
-
-            num_of_packets += 1
 
             # if the packet is a data packet
             if packet.flags in range(QUIQ_Flags.DATA, QUIQ_Flags.DATA_FIN + 1):
@@ -198,24 +184,37 @@ class QUIC:
                 # we start measuring the time of the first frame of each stream
                 if packet.flags == QUIQ_Flags.STREAM_FIRST:
                     start_time = time.time()
-                    self._input_stream_performence[frames[0].stream_id] = start_time
-                    if 0 not in self._input_stream_performence:  # if it is the first frame of the first stream
-                        self._input_stream_performence[0] = start_time
+                    if frames[0].stream_id not in self.stream_statistics:
+                        self.stream_statistics[frames[0].stream_id] = Stream_Statistics(frames[0].stream_id, 0, 0, 0, 0)
+                    self.stream_statistics[frames[0].stream_id].time = start_time
+                    if 0 not in self.stream_statistics:  # if it is the first frame of the first stream
+                        self.stream_statistics[0] = Stream_Statistics(0, 0, 0, 0, 0)
+                        self.stream_statistics[0].time = start_time
+
+                if len(frames) != 0:
+                    # count the number of frames in each stream
+                    self.stream_statistics[frames[0].stream_id].number_of_frames += len(frames)
+                    self.stream_statistics[0].number_of_frames += len(frames)
 
                 # if the packet is the last frame of the stream
                 if packet.flags == QUIQ_Flags.STREAM_LAST:
                     end_time = time.time()
-                    self._input_stream_performence[frames[0].stream_id] = \
-                        end_time - self._input_stream_performence[frames[0].stream_id]
+                    self.stream_statistics[frames[0].stream_id].time = (
+                            end_time - self.stream_statistics[frames[0].stream_id].time
+                    )
 
                 if packet.flags == QUIQ_Flags.DATA_FIN:
                     # calculate the time it took to send all the data on all the streams
                     end_time = time.time()
-                    self._input_stream_performence[0] = end_time - self._input_stream_performence[0]
+                    self.stream_statistics[0].time = end_time - self.stream_statistics[0].time
                     print("Received all the data")
                     self.display_statistics()
                     break
 
+                self.stream_statistics[0].number_of_packets += 1
+                self.stream_statistics[frames[0].stream_id].number_of_packets += 1
+                self.stream_statistics[0].total_bytes += len(data)
+                self.stream_statistics[frames[0].stream_id].total_bytes += len(data)
                 for frame in frames:
                     # IMPORTANT!
                     # we assume that the frames are in order, and all the frames are received
@@ -235,11 +234,9 @@ class QUIC:
                 # close the connection
                 self._socket.close()
                 self._is_closed = True
-                print(f"Number of packets: {num_of_packets}")
                 print("Connection closed")
                 return None
 
-        print(f"Number of packets: {num_of_packets}")
         return self._build_files()
 
     def _build_files(self) -> List[bytes]:
@@ -276,12 +273,30 @@ class QUIC:
 
     def display_statistics(self):
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Displaying statistics~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        print(f"Total time: {self._input_stream_performence[0]}")
-        for i in range(len(self.frame_stream_counter)):
-            print(
-                f"Stream {i + 1}: {self.frame_stream_counter[i + 1]} frames, time: {self._input_stream_performence[i + 1]}")
+
+        print("All data statistics:")
+        print(f"\tNumber of streams: {len(self.stream_statistics) - 1}")  # -1 for the stream 0
+        print(f"\tTotal Number of packets: {self.stream_statistics[0].number_of_packets}")
+        print(f"\tTotal Number of frames: {self.stream_statistics[0].number_of_frames}")
+        print(f"\tTotal Number of bytes: {self.stream_statistics[0].total_bytes}")
+        print(f"\tTotal time: {self.stream_statistics[0].time}")
+
+        print("Each stream statistics:")
+        for i in range(len(self.stream_statistics) - 1):
+            print(f"\tStream {self.stream_statistics[i + 1].stream_id} statistics:")
+            print(f"\t\tNumber of packets: {self.stream_statistics[i + 1].number_of_packets}")
+            print(f"\t\tNumber of frames: {self.stream_statistics[i + 1].number_of_frames}")
+            print(f"\t\tNumber of bytes: {self.stream_statistics[i + 1].total_bytes}")
+            print(f"\t\tTime: {self.stream_statistics[i + 1].time}")
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~End of statistics~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        # TODO: implement this function
+        # TODO: calculate the following statistics:
+        """
+        c. The average data rates (bytes per second) and packets (packets per second) in each stream.
+        d. The total data rate, ie: how many bytes reached the destination per second, on average.
+        e. The total packet rate, ie: how many packets reached the destination per second, on average.
+        """
+
+        # TODO: show graphs of d and e on different number of streams
 
 
 class _QUICPacket:
