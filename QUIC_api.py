@@ -9,13 +9,18 @@ from typing import Dict, List, Tuple
 
 
 class QUIC:
+    """
+    This class represents a QUIC connection.
+    You can use this class as a sender or a receiver.
+    If you are the receiver, at the end of the `receive` function, a statistics will be displayed.
+    """
 
     def __init__(self):
         # Create UDP socket
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._is_closed = False
 
-        # for later use
+        # for later use (so we can close the connection and open it again in the same instance)
         self._host = None
         self._port = None
 
@@ -191,8 +196,8 @@ class QUIC:
                         self.stream_statistics[0] = Stream_Statistics(0, 0, 0, 0, 0)
                         self.stream_statistics[0].time = start_time
 
+                # count the number of frames in each stream
                 if len(frames) != 0:
-                    # count the number of frames in each stream
                     self.stream_statistics[frames[0].stream_id].number_of_frames += len(frames)
                     self.stream_statistics[0].number_of_frames += len(frames)
 
@@ -215,6 +220,7 @@ class QUIC:
                 self.stream_statistics[frames[0].stream_id].number_of_packets += 1
                 self.stream_statistics[0].total_bytes += len(data)
                 self.stream_statistics[frames[0].stream_id].total_bytes += len(data)
+
                 for frame in frames:
                     # IMPORTANT!
                     # we assume that the frames are in order, and all the frames are received
@@ -225,9 +231,7 @@ class QUIC:
                         self._input_streams[frame.stream_id] = frame.data
 
                 # send an ACK packet to the sender
-                packet.flags = QUIQ_Flags.ACK_DATA
-                packet.payload = bytearray()
-                self._socket.sendto(packet.serialize(), addr)
+                self._socket.sendto(_QUICPacket(QUIQ_Flags.ACK_DATA).serialize(), addr)
 
             # if the packet is a close connection packet
             if packet.flags == QUIQ_Flags.FIN:
@@ -237,6 +241,7 @@ class QUIC:
                 print("Connection closed")
                 return None
 
+        # return the files that were received in each stream
         return self._build_files()
 
     def _build_files(self) -> List[bytes]:
@@ -256,6 +261,7 @@ class QUIC:
         This function will close the connection.
         :return:
         """
+        # if the connection is already closed, return
         if self._is_closed:
             return
 
@@ -271,8 +277,11 @@ class QUIC:
         self._is_closed = True
         print("Connection closed")
 
-    def display_statistics(self):
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Displaying statistics~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    def display_statistics(self) -> None:
+        """
+        Display the statistics of the connection as requested in the assignment.
+        """
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Statistics~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
         print("All data statistics:")
         print(f"\tNumber of streams: {len(self.stream_statistics) - 1}")  # -1 for the stream 0
@@ -288,7 +297,7 @@ class QUIC:
             print(f"\t\tNumber of frames: {self.stream_statistics[i + 1].number_of_frames}")
             print(f"\t\tNumber of bytes: {self.stream_statistics[i + 1].total_bytes}")
             print(f"\t\tTime: {self.stream_statistics[i + 1].time}")
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~End of statistics~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~End of statistics~~~~~~~~~~~~~~~~~~~~~~~~~~")
         # TODO: calculate the following statistics:
         """
         c. The average data rates (bytes per second) and packets (packets per second) in each stream.
@@ -300,16 +309,25 @@ class QUIC:
 
 
 class _QUICPacket:
+    """
+    This class represents a QUIC packet.
+    It uses fix size for the header and the frame header.
+    """
+
+    # a constant for the maximum packet size
     MAX_PACKET_SIZE = 15000
 
+    # the format of the header
     HEADER_FORMAT = '!BIQ'  # 1 byte for flags, 4 bytes for packet number, 8 bytes for payload length
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
     MAX_PAYLOAD_SIZE = MAX_PACKET_SIZE - HEADER_SIZE
 
+    # the format of the frame
     FRAME_FORMAT = '!IIQ'  # 4 bytes for stream_id, 4 bytes for offset, 8 bytes for data length
     FRAME_HEADER_SIZE = struct.calcsize(FRAME_FORMAT)
 
-    _packet_number_counter = 0
+    # class variable to generate the packet number
+    _packet_number_gen = 0
 
     def __init__(self, flags: int = 0):
         self.flags = flags
@@ -318,8 +336,8 @@ class _QUICPacket:
 
     @classmethod
     def generate_packet_number(cls):
-        cls._packet_number_counter += 1
-        return cls._packet_number_counter
+        cls._packet_number_gen += 1
+        return cls._packet_number_gen
 
     def add_frame(self, stream_id: int, offset: int, data: bytes):
         """
@@ -338,7 +356,7 @@ class _QUICPacket:
     def serialize(self) -> bytes:
         """
         Serialize the packet to bytes.
-        :return:
+        :return: The packet as bytes.
         """
         header = struct.pack(self.HEADER_FORMAT, self.flags, self.packet_number, len(self.payload))
         return header + self.payload
@@ -371,11 +389,15 @@ class _QUICPacket:
         return packet, frames
 
     def __str__(self):
-        return f"SerializableQUICPacket(flags={self.flags}, number={self.packet_number}, payload_size={len(self.payload)})"
+        return f"_QUICPacket(flags={self.flags}, number={self.packet_number}, payload_size={len(self.payload)})"
 
 
 @dataclass
 class _QUICFrame:
+    """
+    This class represents a QUIC frame.
+    This class contains the stream_id, offset, and data of the frame.
+    """
     stream_id: int
     offset: int
     data: bytes
@@ -386,6 +408,9 @@ class _QUICFrame:
 
 @dataclass
 class Stream_Statistics:
+    """
+    This class represents the statistics for a stream.
+    """
     stream_id: int
     number_of_packets: int
     number_of_frames: int
@@ -394,6 +419,10 @@ class Stream_Statistics:
 
 
 class QUIQ_Flags(IntEnum):
+    """
+    Enum for the flags of the QUIC packet.
+    The range of ACK_DATA to DATA_FIN represents a data packet with different flags.
+    """
     SYN = 1
     ACCEPT_CONNECTION = 2  # SYN-ACK
     ACK_DATA = 3
