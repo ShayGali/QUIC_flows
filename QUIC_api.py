@@ -38,7 +38,7 @@ class QUIC:
         :param port: The port to listen on.
         :return:
         """
-        print(f"Listening on {host}:{port}")
+        print(f"Listening on {host}: {port}")
 
         self._host = host
         self._port = port
@@ -186,6 +186,10 @@ class QUIC:
             # if the packet is a data packet
             if packet.flags in range(QUIQ_Flags.DATA, QUIQ_Flags.DATA_FIN + 1):
 
+                # NOTE: if we receive only one packet, we will not be able to calculate the time,
+                # but it is not a problem because we will not consider the time of one packet
+                # (it will be not accurate anyway)
+
                 # we start measuring the time of the first frame of each stream
                 if packet.flags == QUIQ_Flags.STREAM_FIRST:
                     start_time = time.time()
@@ -281,30 +285,35 @@ class QUIC:
         """
         Display the statistics of the connection as requested in the assignment.
         """
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Statistics~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Statistics~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
         print("All data statistics:")
-        print(f"\tNumber of streams: {len(self.stream_statistics) - 1}")  # -1 for the stream 0
-        print(f"\tTotal Number of packets: {self.stream_statistics[0].number_of_packets}")
-        print(f"\tTotal Number of frames: {self.stream_statistics[0].number_of_frames}")
-        print(f"\tTotal Number of bytes: {self.stream_statistics[0].total_bytes}")
-        print(f"\tTotal time: {self.stream_statistics[0].time}")
+        print(f"\t{'Number of streams':<25}: {len(self.stream_statistics) - 1:,}")  # -1 for the stream 0
+        print(f"\t{'Total Number of packets':<25}: {self.stream_statistics[0].number_of_packets:,}")
+        print(f"\t{'Total Number of frames':<25}: {self.stream_statistics[0].number_of_frames:,}")
+        print(f"\t{'Total Number of bytes':<25}: {self.stream_statistics[0].total_bytes:,}")
+        print(f"\t{'Total time':<25}: {self.stream_statistics[0].time:,} seconds")
 
-        print("Each stream statistics:")
+        # d part
+        avg_data_rate = self.stream_statistics[0].total_bytes / self.stream_statistics[0].time
+        print(f"\t{'Average data rate':<25}: {avg_data_rate:,} bytes per second")
+
+        # e part
+        avg_packet_rate = self.stream_statistics[0].number_of_packets / self.stream_statistics[0].time
+        print(f"\t{'Average packet rate':<25}: {avg_packet_rate:,} packets per second")
+
+        print("\nEach stream statistics:")
         for i in range(len(self.stream_statistics) - 1):
-            print(f"\tStream {self.stream_statistics[i + 1].stream_id} statistics:")
-            print(f"\t\tNumber of packets: {self.stream_statistics[i + 1].number_of_packets}")
-            print(f"\t\tNumber of frames: {self.stream_statistics[i + 1].number_of_frames}")
-            print(f"\t\tNumber of bytes: {self.stream_statistics[i + 1].total_bytes}")
-            print(f"\t\tTime: {self.stream_statistics[i + 1].time}")
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~End of statistics~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        # TODO: calculate the following statistics:
-        """
-        c. The average data rates (bytes per second) and packets (packets per second) in each stream.
-        d. The total data rate, ie: how many bytes reached the destination per second, on average.
-        e. The total packet rate, ie: how many packets reached the destination per second, on average.
-        """
+            print(f"\tStream {self.stream_statistics[i + 1].stream_id:,} statistics:")
+            print(f"\t\t{'Number of packets':<20}: {self.stream_statistics[i + 1].number_of_packets:,}")
+            print(f"\t\t{'Number of frames':<20}: {self.stream_statistics[i + 1].number_of_frames:,}")
+            print(f"\t\t{'Number of bytes':<20}: {self.stream_statistics[i + 1].total_bytes:,}")
+            print(f"\t\t{'Time':<20}: {self.stream_statistics[i + 1].time:,} seconds")
 
+            # c part
+            avg_data_rate = self.stream_statistics[i + 1].total_bytes / self.stream_statistics[i + 1].time
+            print(f"\t\t{'Average data rate':<20}: {avg_data_rate:,} bytes per second")
+        print("\n~~~~~~~~~~~~~~~~~~~~~~~~~End of statistics~~~~~~~~~~~~~~~~~~~~~~~~~~")
         # TODO: show graphs of d and e on different number of streams
 
 
@@ -427,7 +436,7 @@ class QUIQ_Flags(IntEnum):
     ACCEPT_CONNECTION = 2  # SYN-ACK
     ACK_DATA = 3
     DATA = 4
-    STREAM_FIRST = 5
-    STREAM_LAST = 6
+    STREAM_FIRST = 5  # for the statistics
+    STREAM_LAST = 6  # for the statistics
     DATA_FIN = 7
     FIN = 8
