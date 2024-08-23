@@ -12,7 +12,7 @@ async def receiver() -> None:
     while (file_data := await conn.receive()) is not None:
         # save the file data to a file
         for i, file in enumerate(file_data):
-            with open(f"file_{i}.txt", "wb") as f:
+            with open(f"file_{i+1}.txt", "wb") as f:
                 f.write(file)
     conn.close()
 

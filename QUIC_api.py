@@ -8,7 +8,6 @@ import time
 from typing import Dict, List, Tuple
 
 
-
 class QUIC:
     """
     This class represents a QUIC connection.
@@ -32,7 +31,7 @@ class QUIC:
         self._output_streams: Dict[int, bytes] = {}
 
         # the statistics of the connection
-        self.total_connection_statistics: Stream_Statistics = Stream_Statistics(0, 0, 0, 0, 0)
+        self.total_connection_statistics: Stream_Statistics = Stream_Statistics(0, 0, 0, 0, 0, 0)
         # a dictionary to store the statistics of each stream
         self.stream_statistics: Dict[int, Stream_Statistics] = {}
 
@@ -199,7 +198,8 @@ class QUIC:
                 if packet.flags == QUIQ_Flags.STREAM_FIRST:
                     start_time = time.time()
                     if frames[0].stream_id not in self.stream_statistics:  # need for continuous streams
-                        self.stream_statistics[frames[0].stream_id] = Stream_Statistics(frames[0].stream_id, 0, 0, 0, 0)
+                        self.stream_statistics[frames[0].stream_id] = Stream_Statistics(frames[0].stream_id, 0, 0, 0, 0,
+                                                                                        0)
                     self.stream_statistics[frames[0].stream_id].time = start_time
                     self.total_connection_statistics.time = start_time
 
@@ -224,12 +224,17 @@ class QUIC:
                     break
 
                 # update the statistics
+                # sum the data length of the frames
+                payload_size = packet.payload_length - len(frames) * _QUICPacket.FRAME_HEADER_SIZE
                 # of the current stream
                 self.stream_statistics[frames[0].stream_id].number_of_packets += 1
                 self.stream_statistics[frames[0].stream_id].total_bytes += len(data)
+                self.stream_statistics[frames[0].stream_id].payload_size += payload_size
+
                 # of the total connection
                 self.total_connection_statistics.number_of_packets += 1
                 self.total_connection_statistics.total_bytes += len(data)
+                self.total_connection_statistics.payload_size += payload_size
 
                 for frame in frames:
                     # IMPORTANT!
@@ -294,10 +299,11 @@ class QUIC:
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Statistics~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n")
 
         print("All data statistics:")
-        print(f"\t{'Number of streams':<25}: {len(self.stream_statistics):,}")  # -1 for the stream 0
+        print(f"\t{'Number of streams':<25}: {len(self.stream_statistics):,}")
         print(f"\t{'Total Number of packets':<25}: {self.total_connection_statistics.number_of_packets:,}")
         print(f"\t{'Total Number of frames':<25}: {self.total_connection_statistics.number_of_frames:,}")
         print(f"\t{'Total Number of bytes':<25}: {self.total_connection_statistics.total_bytes:,}")
+        print(f"\t{'Total Payload size':<25}: {self.total_connection_statistics.payload_size:,}")
         print(f"\t{'Total time':<25}: {self.total_connection_statistics.time:,} seconds")
 
         # d part
@@ -314,6 +320,7 @@ class QUIC:
             print(f"\t\t{'Number of packets':<20}: {stream_stat.number_of_packets:,}")
             print(f"\t\t{'Number of frames':<20}: {stream_stat.number_of_frames:,}")
             print(f"\t\t{'Number of bytes':<20}: {stream_stat.total_bytes:,}")
+            print(f"\t\t{'Payload size':<20}: {stream_stat.payload_size:,}")
             print(f"\t\t{'Time':<20}: {stream_stat.time:,} seconds")
 
             # c part
@@ -348,6 +355,7 @@ class _QUICPacket:
     def __init__(self, flags: int = 0):
         self.flags = flags
         self.packet_number = self.generate_packet_number()
+        self.payload_length = 0
         self.payload = bytearray()
 
     @classmethod
@@ -365,6 +373,7 @@ class _QUICPacket:
         frame = struct.pack('!IIQ', stream_id, offset, len(data)) + data
         if len(self.payload) + len(frame) <= self.MAX_PAYLOAD_SIZE:
             # if we can fit the frame in the payload, add it
+            self.payload_length += len(frame)
             self.payload.extend(frame)
         else:
             raise ValueError("Payload size exceeded")
@@ -390,6 +399,7 @@ class _QUICPacket:
         packet = cls(flags)
         packet.packet_number = packet_number
         packet.payload = bytearray(data[cls.HEADER_SIZE:cls.HEADER_SIZE + payload_length])
+        packet.payload_length = payload_length
 
         # parse the payload to frames
         frames = []
@@ -398,7 +408,7 @@ class _QUICPacket:
             stream_id, frame_offset, data_length = struct.unpack_from('!IIQ', packet.payload, offset)
             offset += cls.FRAME_HEADER_SIZE  # the header size
             frame_data = packet.payload[offset:offset + data_length]
-            frame = _QUICFrame(stream_id, frame_offset, frame_data)
+            frame = _QUICFrame(stream_id, frame_offset, data_length, frame_data)
             frames.append(frame)
             offset += data_length
 
@@ -416,6 +426,7 @@ class _QUICFrame:
     """
     stream_id: int
     offset: int
+    data_length: int
     data: bytes
 
     def __len__(self):
@@ -431,6 +442,7 @@ class Stream_Statistics:
     number_of_packets: int
     number_of_frames: int
     total_bytes: int
+    payload_size: int
     time: float
 
 
