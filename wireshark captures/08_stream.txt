@@ -1,0 +1,78 @@
+sender:
+stream_id=1, number_of_packets=74, frame_per_packet=10, number_of_frames=738, frame_size=1437
+stream_id=2, number_of_packets=75, frame_per_packet=9, number_of_frames=667, frame_size=1589
+stream_id=3, number_of_packets=73, frame_per_packet=9, number_of_frames=656, frame_size=1615
+stream_id=4, number_of_packets=76, frame_per_packet=9, number_of_frames=678, frame_size=1564
+stream_id=5, number_of_packets=72, frame_per_packet=11, number_of_frames=782, frame_size=1357
+stream_id=6, number_of_packets=74, frame_per_packet=14, number_of_frames=1030, frame_size=1035
+stream_id=7, number_of_packets=72, frame_per_packet=13, number_of_frames=928, frame_size=1146
+stream_id=8, number_of_packets=72, frame_per_packet=12, number_of_frames=856, frame_size=1241
+
+receiver:
+All data statistics:
+        Number of streams        : 8
+        Total Number of packets  : 583
+        Total Number of frames   : 6,286
+        Total Number of bytes    : 8,425,203
+        Total Payload size       : 8,317,048
+        Total time               : 0.9566824436187744 seconds
+        Average data rate        : 8,806,687.167928562 bytes per second
+        Average packet rate      : 609.3976155710849 packets per second
+
+Each stream statistics:
+        Stream 1 statistics:
+                Number of packets   : 74
+                Number of frames    : 738
+                Number of bytes     : 1,061,345
+                Payload size        : 1,048,575
+                Time                : 0.9589390754699707 seconds
+                Average data rate   : 1,106,790.855800553 bytes per second
+        Stream 2 statistics:
+                Number of packets   : 72
+                Number of frames    : 640
+                Number of bytes     : 1,017,280
+                Payload size        : 1,006,104
+                Time                : 0.9589390754699707 seconds
+                Average data rate   : 1,060,839.031407117 bytes per second
+        Stream 3 statistics:
+                Number of packets   : 72
+                Number of frames    : 647
+                Number of bytes     : 1,045,472
+                Payload size        : 1,034,184
+                Time                : 0.9579348564147949 seconds
+                Average data rate   : 1,091,381.1027952621 bytes per second
+        Stream 4 statistics:
+                Number of packets   : 76
+                Number of frames    : 678
+                Number of bytes     : 1,060,411
+                Payload size        : 1,048,575
+                Time                : 0.9576876163482666 seconds
+                Average data rate   : 1,107,261.8898878794 bytes per second
+        Stream 5 statistics:
+                Number of packets   : 72
+                Number of frames    : 782
+                Number of bytes     : 1,062,023
+                Payload size        : 1,048,575
+                Time                : 0.9402873516082764 seconds
+                Average data rate   : 1,129,466.4319194613 bytes per second
+        Stream 6 statistics:
+                Number of packets   : 74
+                Number of frames    : 1,030
+                Number of bytes     : 1,066,017
+                Payload size        : 1,048,575
+                Time                : 0.9576876163482666 seconds
+                Average data rate   : 1,113,115.5731811605 bytes per second
+        Stream 7 statistics:
+                Number of packets   : 71
+                Number of frames    : 915
+                Number of bytes     : 1,049,448
+                Payload size        : 1,033,885
+                Time                : 0.9392821788787842 seconds
+                Average data rate   : 1,117,287.2472175723 bytes per second
+        Stream 8 statistics:
+                Number of packets   : 72
+                Number of frames    : 856
+                Number of bytes     : 1,063,207
+                Payload size        : 1,048,575
+                Time                : 0.9392821788787842 seconds
+                Average data rate   : 1,131,935.6673722311 bytes per second

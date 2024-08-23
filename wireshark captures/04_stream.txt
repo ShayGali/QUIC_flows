@@ -1,0 +1,48 @@
+sender:
+stream_id=1, number_of_packets=80, frame_per_packet=7, number_of_frames=558, frame_size=1898
+stream_id=2, number_of_packets=74, frame_per_packet=13, number_of_frames=956, frame_size=1113
+stream_id=3, number_of_packets=81, frame_per_packet=7, number_of_frames=562, frame_size=1883
+stream_id=4, number_of_packets=72, frame_per_packet=14, number_of_frames=999, frame_size=1066
+
+
+receiver:
+
+All data statistics:
+        Number of streams        : 4
+        Total Number of packets  : 307
+        Total Number of frames   : 3,075
+        Total Number of bytes    : 4,247,491
+        Total Payload size       : 4,194,300
+        Total time               : 1.2043342590332031 seconds
+        Average data rate        : 3,526,837.3112708223 bytes per second
+        Average packet rate      : 254.91261889904945 packets per second
+
+Each stream statistics:
+        Stream 1 statistics:
+                Number of packets   : 80
+                Number of frames    : 558
+                Number of bytes     : 1,058,543
+                Payload size        : 1,048,575
+                Time                : 1.1884088516235352 seconds
+                Average data rate   : 890,722.9179199397 bytes per second
+        Stream 2 statistics:
+                Number of packets   : 74
+                Number of frames    : 956
+                Number of bytes     : 1,064,833
+                Payload size        : 1,048,575
+                Time                : 1.112046241760254 seconds
+                Average data rate   : 957,543.8142882258 bytes per second
+        Stream 3 statistics:
+                Number of packets   : 81
+                Number of frames    : 562
+                Number of bytes     : 1,058,620
+                Payload size        : 1,048,575
+                Time                : 1.203481912612915 seconds
+                Average data rate   : 879,631.0014344951 bytes per second
+        Stream 4 statistics:
+                Number of packets   : 72
+                Number of frames    : 999
+                Number of bytes     : 1,065,495
+                Payload size        : 1,048,575
+                Time                : 1.094388723373413 seconds
+                Average data rate   : 973,598.2994375625 bytes per second

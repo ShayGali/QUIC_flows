@@ -1,0 +1,39 @@
+sender:
+stream_id=1, number_of_packets=72, frame_per_packet=14, number_of_frames=997, frame_size=1068
+stream_id=2, number_of_packets=76, frame_per_packet=9, number_of_frames=682, frame_size=1554
+stream_id=3, number_of_packets=72, frame_per_packet=11, number_of_frames=787, frame_size=1350
+
+receiver:
+
+All data statistics:
+        Number of streams        : 3
+        Total Number of packets  : 220
+        Total Number of frames   : 2,466
+        Total Number of bytes    : 3,188,041
+        Total Payload size       : 3,145,725
+        Total time               : 1.1384773254394531 seconds
+        Average data rate        : 2,800,267.4526428655 bytes per second
+        Average packet rate      : 193.24056358793078 packets per second
+
+Each stream statistics:
+        Stream 1 statistics:
+                Number of packets   : 72
+                Number of frames    : 997
+                Number of bytes     : 1,065,463
+                Payload size        : 1,048,575
+                Time                : 1.0745818614959717 seconds
+                Average data rate   : 991,514.0373919238 bytes per second
+        Stream 2 statistics:
+                Number of packets   : 76
+                Number of frames    : 682
+                Number of bytes     : 1,060,475
+                Payload size        : 1,048,575
+                Time                : 1.1222507953643799 seconds
+                Average data rate   : 944,953.663103155 bytes per second
+        Stream 3 statistics:
+                Number of packets   : 72
+                Number of frames    : 787
+                Number of bytes     : 1,062,103
+                Payload size        : 1,048,575
+                Time                : 1.0754351615905762 seconds
+                Average data rate   : 987,603.0075389596 bytes per second

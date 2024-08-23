@@ -1,0 +1,23 @@
+sender:
+stream_id=1, number_of_packets=78, frame_per_packet=8, number_of_frames=622, frame_size=1702
+
+receiver:
+
+All data statistics:
+        Number of streams        : 1
+        Total Number of packets  : 78
+        Total Number of frames   : 622
+        Total Number of bytes    : 1,059,541
+        Total Payload size       : 1,048,575
+        Total time               : 1.206632137298584 seconds
+        Average data rate        : 878,097.7791393053 bytes per second
+        Average packet rate      : 64.6427337619458 packets per second
+
+Each stream statistics:
+        Stream 1 statistics:
+                Number of packets   : 78
+                Number of frames    : 622
+                Number of bytes     : 1,059,541
+                Payload size        : 1,048,575
+                Time                : 1.1908433437347412 seconds
+                Average data rate   : 889,740.0363989534 bytes per second
