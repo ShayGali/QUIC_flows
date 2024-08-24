@@ -5,7 +5,7 @@ from QUIC_api import *
 HOST = '127.0.0.1'
 PORT = 4269
 
-NUM_OF_FILES = 10
+NUM_OF_FILES = 1
 FILE_NAME = "inputs/1mb_file.txt"
 
 
