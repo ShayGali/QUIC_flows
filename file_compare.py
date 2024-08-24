@@ -1,6 +1,6 @@
 import difflib
 
-FILE1 = "1mb_file.txt"
+FILE1 = "inputs/1mb_file.txt"
 NUM_OF_FILES = 3
 
 with open(FILE1, 'r') as f1:

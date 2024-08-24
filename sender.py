@@ -6,7 +6,7 @@ HOST = '127.0.0.1'
 PORT = 4269
 
 NUM_OF_FILES = 10
-FILE_NAME = "1mb_file.txt"
+FILE_NAME = "inputs/1mb_file.txt"
 
 
 async def sender(file_name: str, num_of_files: int):

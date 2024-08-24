@@ -6,7 +6,7 @@ import sys
 
 HOST = '127.0.0.1'
 PORT = 4269
-FILE_TO_SEND = "1mb_file.txt"
+FILE_TO_SEND = "inputs/1mb_file.txt"
 NUMBER_OF_STREAMS = 3
 
 
