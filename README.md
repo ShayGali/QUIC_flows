@@ -4,6 +4,8 @@ This is the final project for the course "Communication Networks."
 
 The project instructions can be found [here](./final_project.pdf).
 
+An explanation of the project and the 'dry part' of the assignment can be found [here](./explanation.pdf).
+
 ### Requirements
 
 - Python 3.12
